@@ -1,0 +1,17 @@
+PCKL: https://www.kaggle.com/datasets/sankalpsinghvishen/derived-fallalld-dataset/data
+
+About this file
+
+Suggest Edits
+FallAllD is a large open dataset of human falls and activities of daily living simulated by 15 participants. FallAllD consists of 26420 files collected using three data-loggers worn on the waist, wrist and neck of the subjects. Motion signals are captured using an accelerometer, gyroscope, magnetometer and barometer with efficient configurations that suit the potential applications e.g. fall detection, fall prevention and human activity recognition.
+
+FallAllD is described in detail in the following journal article:
+
+M. Saleh, M. Abbas and R. L. B. Jeannès, "FallAllD: An Open Dataset of Human Falls and Activities of Daily Living for Classical and Deep Learning Applications," in IEEE Sensors Journal, doi: 10.1109/JSEN.2020.3018335.
+
+FALL DATA: https://www.kaggle.com/datasets/harnoor343/fall-detection-accelerometer-data
+MOBIL DATA: https://www.kaggle.com/datasets/kmknation/mobifall-dataset-v20/data
+
+SisFALL: 
+
+

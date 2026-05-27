@@ -1,0 +1,253 @@
+% ─────────────────────────────────────────────────────────────
+\phantomsection
+\chapter{Conclusion}
+\label{sec:conclusion}
+
+This thesis investigated whether persistent homology, applied to short wearable
+accelerometer windows via a delay-embedding pipeline, can support recall-oriented
+fall detection that is simultaneously rigorous in its evaluation, principled in its
+feature construction, and lightweight enough for edge deployment.  The investigation
+was organised around four research hypotheses and carried out on three public
+benchmark datasets---MobiFall, SisFall, and FAD\_40Hz---under a three-protocol
+subject-aware evaluation framework.  The findings are summarised below at three
+levels of description: mathematical, statistical, and engineering.
+
+% ─────────────────────────────────────────────────────────────
+\section{Mathematical Perspective}
+\label{subsec:conclusion-math}
+
+\paragraph{Representation effectiveness (H1).}
+The feature map $\phi_\lambda\colon\R^{n\times 3}\to\R^{24}$, with hyperparameters
+$\lambda^*_K$ identified by Bayesian optimisation, achieves mean subject-general
+$F_2$ of $0.9709$ (LR) and $0.9700$ (SVM) on SisFall, $0.9429$ (LR) and
+$0.9592$ (SVM) on FAD\_40Hz, and $0.9049$ (LR) and $0.8918$ (SVM) on MobiFall
+under the leave-one-subject-out protocol.  All values exceed the pre-specified
+thresholds ($\geq 0.93$ on SisFall and FAD\_40Hz; $\geq 0.80$ on MobiFall) for at
+least one classifier, and recall is above $0.95$ across all dataset-classifier
+combinations.  H1 is conditionally confirmed: the representation meets its own
+targets, subject to the caveat that no baseline comparison has been conducted.
+
+The theoretical basis for this effectiveness is the Cohen--Steiner stability
+theorem, which guarantees that the bottleneck distance between two persistence
+diagrams is bounded by the supremum norm of the perturbation between the
+corresponding input functions.  This bound is a mathematical theorem, not an
+empirical observation, and it provides a formal noise-robustness certificate that
+no competing feature family---handcrafted statistical features, spectral
+coefficients, or deep-network embeddings---possesses in comparable form.
+
+\paragraph{Dataset-specific topological geometry (H2).}
+The three datasets converged to structurally distinct optimal configurations:
+MobiFall selected a SparseRips complex at a 5.0~s window with Chebyshev distance,
+SisFall selected an Alpha complex at a 1.0~s window, and FAD\_40Hz selected a
+standard Rips complex at a 1.0~s window with Manhattan distance.  Every dimension of
+the hyperparameter tuple $\lambda$ varies across at least two datasets.  H2 is
+qualitatively confirmed: no universal configuration exists for these three datasets.
+
+Mathematically, this finding is consistent with the geometry of the underlying
+delay-embedded point clouds.  The Alpha complex is derived from the Euclidean
+Delaunay triangulation and is appropriate when the point cloud is convex and
+well-conditioned; SisFall's controlled, elderly-subject falls produce exactly this
+geometry.  The SparseRips complex handles large, noisy clouds efficiently by
+subsampling; MobiFall's continuous-wear sensor data requires this treatment.  The
+differing window lengths encode a genuine difference in fall dynamics: MobiFall falls
+require a 5.0~s window to capture the pre-impact, impact, and post-fall phases
+jointly, while SisFall and FAD\_40Hz falls are discriminable in 1.0~s.
+
+\paragraph{Representation dominates classifier choice (H3).}
+The absolute difference in General-protocol $F_2$ between LR and SVM is $0.0131$
+on MobiFall, $0.0009$ on SisFall, and $0.0163$ on FAD\_40Hz---all below $0.02$.
+By contrast, the $F_2$ range across 200 Optuna trials is $0.179$ on MobiFall,
+$0.053$ on SisFall, and $0.108$ on FAD\_40Hz.  The ratio of $\lambda$-tuning
+variation to classifier gap is $13.7\times$ on MobiFall, $59\times$ on SisFall,
+and $6.6\times$ on FAD\_40Hz.
+
+H3 is strongly confirmed.  The mathematical interpretation is that $\phi_{\lambda^*}$
+with the optimal representation transforms the nonlinear fall-versus-ADL boundary
+into an approximately linearly separable problem in $\R^{24}$.  Once this
+transformation is achieved, both logistic regression (linear boundary) and SVM
+(maximum-margin boundary, with or without an RBF kernel) operate near their
+theoretical limit, producing near-equivalent results.  The signal resides in the
+map $\phi_{\lambda^*}$, not in the classifier class.
+
+% ─────────────────────────────────────────────────────────────
+\section{Statistical Perspective}
+\label{subsec:conclusion-stat}
+
+\paragraph{Threshold personalisation as a distributional phenomenon (H4).}
+The subject-level sweep gain $\Delta F_2(s) = F_2(\tau^*(s),s) - F_2(\hat\tau_0(s),s)$,
+where $\hat\tau_0(s)$ is the PR-curve trained threshold, has a right-skewed
+distribution in all six dataset-classifier combinations.  The mean gains are
+$0.035$--$0.047$ on MobiFall, $0.025$--$0.035$ on FAD\_40Hz, and
+$0.004$--$0.008$ on SisFall.  The coefficient of variation exceeds $50\%$ in all
+cases, reaching $138\%$ for SisFall LR---indicating that the distribution is highly
+dispersed relative to its mean.
+
+H4 is confirmed in a refined form.  The proposal predicted that the distribution
+of $\Delta_s$ would contain both positive and negative values.  In practice, all
+gains are non-negative by construction (the sweep is an argmax), but the
+distribution is far from uniform: it concentrates near zero for the majority of
+subjects while a small minority achieves gains exceeding $0.10$ units of $F_2$.
+Subject~11 on FAD\_40Hz (LR) gains $+0.1165$, lifting $F_2$ from $0.8046$ to
+$0.9211$ by adjusting the threshold alone.  This heterogeneity is incompatible with
+a uniform-shift explanation: if the classifier's posterior probabilities were
+globally miscalibrated in the same direction for all subjects, a single global
+threshold offset would equalise all gains.  The observed distribution implies that
+the optimal decision boundary location is genuinely subject-specific.
+
+\paragraph{Evaluation integrity under LOSO.}
+The leave-one-subject-out protocol with $R=15$ independent class-balancing
+repetitions separates two sources of variability that are conflated in random
+train-test splits: (i) within-subject repetition variance, captured by the
+repetition-level $t$-confidence intervals, and (ii) across-subject heterogeneity,
+visible in the per-subject tables.  The Naive protocol consistently produces results
+comparable to or marginally lower than the General protocol on SisFall (Naive
+$F_2=0.9713$ vs.\ General $0.9709$ for LR), suggesting that LOSO is not
+materially penalised by train-test class mismatch on large, diverse datasets.  On
+MobiFall, where the subject pool is small (9 subjects), the repetition-level
+confidence intervals are wider ($\pm0.039$ for LR), correctly reflecting the
+limited statistical power of a 9-fold LOSO evaluation.
+
+The Personal protocol reveals a further finding: full per-subject model training
+degrades $F_2$ severely on MobiFall ($\Delta = -0.172$ for LR) but only modestly on
+SisFall ($\Delta = -0.030$ for LR), with the magnitude of degradation inversely
+correlated with the subject pool size.  This confirms that personalised model
+training is only beneficial when sufficient per-subject data is available, and that
+the threshold sweep is the appropriate personalisation mechanism when data is sparse.
+
+% ─────────────────────────────────────────────────────────────
+\section{Engineering Perspective}
+\label{subsec:conclusion-eng}
+
+\paragraph{Inference-time personalisation without retraining.}
+The central engineering contribution of the thesis is the identification of
+decision-threshold optimisation as a first-class personalisation mechanism that
+is qualitatively different from all prior alternatives.  The threshold
+$\tau\in\mathcal{T}=\{0.05,\ldots,0.95\}$ is the only parameter that can be
+adjusted at inference time, without gradient computation, without access to the
+training data, and without transmission of data to a server.  The computational
+cost of a full per-subject sweep is $O(|\mathcal{T}|\cdot|W_s|)$ comparisons,
+amounting to less than one second of wall time for all subjects in any of the three
+datasets.  The ratio to the Bayesian optimisation cost exceeds $10^3$.
+
+This asymmetry has a direct consequence for product design.  A wearable fall
+detection system based on the proposed pipeline can be shipped with a population-level
+model ($\phi_{\lambda^*}$, $f_\theta$) and personalised to each user at installation
+time by sweeping the threshold over a small held-out calibration set.  No server
+round-trip is required.  No labeled falls are required from the target user in the
+first instance---the sweep can be initialised from simulated events during setup and
+refined as real events accumulate.  This is the only personalisation mechanism among
+those surveyed in this thesis that simultaneously satisfies the zero-retraining,
+privacy-preserving, and inference-time requirements.
+
+\paragraph{CPU-only deployment profile.}
+The entire pipeline---delay embedding, simplicial filtration, boundary matrix
+reduction, feature vectorization, linear classification, and threshold sweep---is
+executable on commodity CPU hardware.  Persistent homology computation on the
+window sizes and embedding dimensions considered here ($m \leq 5$,
+$|P_\lambda| \leq 150$ points) completes in tens of milliseconds per window on a
+desktop-class processor core.  The Bayesian optimisation consumed ${\sim}75$~min
+of CPU time on a 40-core HPC node; this cost is paid once per dataset, not per
+user.
+
+The ARM Cortex-A processors present in current mid-range smartphones are
+comfortably capable of executing the per-window inference pipeline in real time at
+50~Hz.  Modern smartwatch SoCs are more constrained, but the per-window
+computation---feature extraction plus a matrix-vector multiply---is within their
+budget.  The absence of a GPU requirement eliminates the most significant barrier
+to embedded deployment and makes the pipeline uniquely well-suited to the
+battery-constrained wearable context.
+
+\paragraph{Failure mode analysis and minimum calibration set size.}
+The most significant failure mode identified in this thesis is the collapse of
+the Personal protocol on MobiFall: $F_2$ drops from $0.9049$ (General) to
+$0.7325$ (Personal) for LR, and from $0.8918$ to $0.5981$ for SVM.  The cause is
+statistical rather than algorithmic: MobiFall contains 9 subjects with
+approximately 20--30 fall instances per subject, which is insufficient for stable
+within-subject classifier estimation.  The implication for system designers is
+concrete: a minimum calibration set size is required before full personal model
+training is beneficial.  For the datasets studied here, that threshold lies somewhere
+between the 9 subjects of MobiFall and the 13 subjects of FAD\_40Hz.  Below this
+threshold, the threshold sweep is the safer personalisation mechanism.
+
+This failure mode is not a weakness of TDA specifically; it would affect any
+classifier trained on sparse per-subject data.  It is, however, an important
+calibration of expectations for real deployment: the naive assumption that
+``more personalization is always better'' is empirically refuted by the MobiFall
+Personal protocol results.
+
+\paragraph{Path to consumer deployment.}
+Taken together, the three engineering findings---inference-time personalisation,
+CPU-only operation, and the identified minimum calibration requirement---define a
+concrete deployment pathway:
+
+\begin{enumerate}
+  \item A population-level model ($\phi_{\lambda^*}$, $f_\theta$) is trained once
+    on a large labeled dataset and shipped with the device.
+  \item At installation, the user performs a brief simulated fall session
+    (or the device waits to accumulate confirmed fall events from normal wear).
+    The per-subject threshold $\tau^*(s)$ is identified from the calibration
+    scores in under one second.
+  \item Subsequent detections use $\tau^*(s)$.  As more events accumulate, the
+    threshold estimate can be refined.
+  \item No server communication is required for any of steps 1--3; all computation
+    is on-device.
+\end{enumerate}
+
+The natural next step beyond threshold personalisation is one-class anomaly detection:
+training the model exclusively on the user's own activities of daily living,
+treating falls as out-of-distribution events without requiring any labeled fall data.
+The Cohen--Steiner stability of the TDA features ensures that the ADL manifold in
+$\R^{24}$ is robustly estimated from normal wear data, and the threshold sweep
+mechanism extends directly to the standoff distance from the one-class boundary.
+This approach eliminates the cold-start problem entirely and represents the most
+direct path from the current thesis to a consumer-ready, zero-label deployment.
+
+% ─────────────────────────────────────────────────────────────
+\section{Limitations and Open Questions}
+\label{subsec:conclusion-limits}
+
+Four limitations of the current work constrain the strength of the conclusions.
+
+First, the absence of a baseline comparison means that H1 is validated only against
+its own pre-specified targets.  The claim that TDA is superior to statistical-feature
+or threshold-based baselines on these datasets cannot be made from the current
+evidence, and establishing this comparison is the highest-priority open task.
+
+Second, the cross-application drop matrix $M_{K,K'}$ was not computed.  H2 is
+therefore confirmed only qualitatively (distinct optimal configurations) and not
+quantitatively (measured performance penalty from transplanting $\lambda^*_K$ to
+dataset $K'$).
+
+Third, no ablation study was conducted.  The 24-dimensional feature vector
+$\phi_\lambda$ contains $H_0$, $H_1$, and signal statistics; the relative
+contribution of each subvector is unknown, and it is possible that a smaller
+sub-map would achieve comparable performance with lower computational cost.
+
+Fourth, all experiments assume a fixed sensor placement at the waist or in the
+trouser pocket.  The stability theorem guarantees noise robustness within a
+placement, but does not extend to fundamentally different placements (wrist, chest,
+thigh).  Robustness to placement variation is an important practical question that
+remains unaddressed.
+
+% ─────────────────────────────────────────────────────────────
+\section{Closing Remarks}
+
+This thesis set out to answer a focused question: can a TDA pipeline for wearable
+fall detection be simultaneously principled, lightweight, and subject-aware?  The
+experimental evidence across three datasets and two classifiers supports an
+affirmative answer on all three dimensions.  The pipeline is principled in the sense
+that its key property---feature stability---is guaranteed by a mathematical theorem.
+It is lightweight in the sense that it runs without GPU acceleration at latencies
+compatible with real-time embedded operation.  It is subject-aware in the sense that
+the decision threshold can be personalised at inference time, at negligible
+computational cost, without retraining.
+
+The broader lesson from H3 is perhaps the most transferable finding.  The gap between
+a well-tuned and a poorly tuned topological representation ($0.10$--$0.18$ units of
+$F_2$) dwarfs the gap between the best and worst classifier at the optimal
+representation ($< 0.02$ units).  In the fall detection context, and likely in other
+wearable time-series classification problems where the discriminative signal is
+encoded in short-window shape geometry, choosing the right representation is the
+dominant engineering decision.  The choice of classifier is, in an important sense,
+secondary.
+

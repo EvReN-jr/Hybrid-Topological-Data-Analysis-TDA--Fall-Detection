@@ -1,0 +1,122 @@
+{
+  "MobiFall|SVM|Full": {
+    "f2": 0.8912645862960878,
+    "f2_ci": 0.03327902711530521,
+    "rec": 0.9537037037037037,
+    "rec_ci": 0.04134775746264433,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 9
+  },
+  "MobiFall|SVM|H0": {
+    "f2": 0.8685491422970607,
+    "f2_ci": 0.04440823429811602,
+    "rec": 0.9660493827160495,
+    "rec_ci": 0.0342592687143351,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 9
+  },
+  "MobiFall|SVM|H1": {
+    "f2": 0.6522678483927372,
+    "f2_ci": 0.07163534765256979,
+    "rec": 0.8833333333333333,
+    "rec_ci": 0.1264457419817594,
+    "best_params": "{'clf__C': 100, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 9
+  },
+  "MobiFall|SVM|H0+H1": {
+    "f2": 0.8783673363133866,
+    "f2_ci": 0.04144425032078418,
+    "rec": 0.9462962962962962,
+    "rec_ci": 0.04412149949552137,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 9
+  },
+  "MobiFall|SVM|Signal": {
+    "f2": 0.7240659090122299,
+    "f2_ci": 0.07600713228101673,
+    "rec": 0.9790123456790122,
+    "rec_ci": 0.027491566245652622,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 9
+  },
+  "SisFall|SVM|Full": {
+    "f2": 0.9700789506774816,
+    "f2_ci": 0.011141128719105917,
+    "rec": 0.9742222222222221,
+    "rec_ci": 0.013811466810570288,
+    "best_params": "{'clf__C': 10, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 24
+  },
+  "SisFall|SVM|H0": {
+    "f2": 0.9277195094379816,
+    "f2_ci": 0.012636126940100125,
+    "rec": 0.9431593099949263,
+    "rec_ci": 0.014937268631719196,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 24
+  },
+  "SisFall|SVM|H1": {
+    "f2": 0.6456397347311227,
+    "f2_ci": 0.01732523038051707,
+    "rec": 0.8544429223744293,
+    "rec_ci": 0.023094165037412646,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 24
+  },
+  "SisFall|SVM|H0+H1": {
+    "f2": 0.9279537209314251,
+    "f2_ci": 0.013395423023373595,
+    "rec": 0.9430481988838153,
+    "rec_ci": 0.015697269292123957,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 24
+  },
+  "SisFall|SVM|Signal": {
+    "f2": 0.9627395268335729,
+    "f2_ci": 0.014820759429184413,
+    "rec": 0.974037037037037,
+    "rec_ci": 0.01712085651184296,
+    "best_params": "{'clf__C': 10, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 24
+  },
+  "FAD_40Hz|SVM|Full": {
+    "f2": 0.95919901244928,
+    "f2_ci": 0.023377896771618962,
+    "rec": 0.9879335347580649,
+    "rec_ci": 0.010843577871369737,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 13
+  },
+  "FAD_40Hz|SVM|H0": {
+    "f2": 0.8127872098383523,
+    "f2_ci": 0.06769954914423643,
+    "rec": 0.9709020938306261,
+    "rec_ci": 0.025131556058260347,
+    "best_params": "{'clf__C': 10, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 13
+  },
+  "FAD_40Hz|SVM|H1": {
+    "f2": 0.4604533391634681,
+    "f2_ci": 0.07724625863249199,
+    "rec": 0.9251070371287524,
+    "rec_ci": 0.028631321947853876,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 13
+  },
+  "FAD_40Hz|SVM|H0+H1": {
+    "f2": 0.8210116441999494,
+    "f2_ci": 0.061179133211955845,
+    "rec": 0.9662783530405291,
+    "rec_ci": 0.02241001086428632,
+    "best_params": "{'clf__C': 1, 'clf__gamma': 'scale', 'clf__kernel': 'rbf'}",
+    "n_subj": 13
+  },
+  "FAD_40Hz|SVM|Signal": {
+    "f2": 0.9504260954726573,
+    "f2_ci": 0.034759901979976096,
+    "rec": 0.9919133708295933,
+    "rec_ci": 0.007613592267348956,
+    "best_params": "{'clf__C': 100, 'clf__gamma': 'scale', 'clf__kernel': 'linear'}",
+    "n_subj": 13
+  }
+}

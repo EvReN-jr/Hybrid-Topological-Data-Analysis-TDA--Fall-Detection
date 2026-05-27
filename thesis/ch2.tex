@@ -1,0 +1,352 @@
+% ─────────────────────────────────────────────────────────────
+\phantomsection
+\chapter{Related Work}
+\label{sec:related}
+
+Wearable fall detection has been approached from three main directions: rule-based
+threshold detectors, classical machine-learning pipelines built on handcrafted
+features, and end-to-end deep-learning models.  Each direction has produced systems
+that achieve strong scores on controlled benchmark datasets, yet each carries
+structural limitations that become apparent when the goal shifts from benchmark
+performance to robust, personalised deployment.  A fourth line of research applies
+persistent homology to time-series classification in domains outside of fall detection.
+This section surveys each strand, identifies the specific limitations that motivate
+the present work, and closes with an explicit positioning statement.
+
+% ─────────────────────────────────────────────────────────────
+\section{Threshold-Based Fall Detectors}
+\label{subsec:rw-threshold}
+
+\subsection{Method family}
+
+The oldest and most widely deployed family of wearable fall detectors operates
+directly on the signal magnitude vector
+$\mathrm{SMV}(t)=\|\mathbf{a}(t)\|_2$
+and raises an alarm whenever $\mathrm{SMV}(t)$ exceeds a fixed scalar threshold~$T$:
+\[
+  \widehat y(t) = \mathbf{1}\{\mathrm{SMV}(t) > T\}.
+\]
+Kangas et al.~\parencite{kangas2008fall} established the archetypal version of this
+approach on a waist-mounted accelerometer and reported high sensitivity on laboratory
+falls.  Subsequent work introduced two-stage detectors that combine an impact
+threshold with a post-impact stillness check: a fall is declared only if a large
+$\mathrm{SMV}$ spike is followed by a prolonged low-activity period, filtering out
+brief vigorous activities that produce high-magnitude excursions without a subsequent
+motionless phase~\parencite{igual2013challenges}.  Multi-axis variants replace the scalar
+magnitude with component-specific thresholds or combine vertical, horizontal, and
+resultant acceleration thresholds in a logical rule~\parencite{delahoz2014survey}.
+
+\subsection{Mathematical limitations}
+
+The threshold decision rule $\mathbf{1}\{\mathrm{SMV}(t) > T\}$ has three
+fundamental limitations that are mathematical rather than incidental.
+
+\textbf{No probabilistic output.}  The rule produces a hard binary decision with
+no associated posterior probability.  It is therefore impossible to apply a
+principled recall-precision trade-off: there is no continuous operating parameter
+that smoothly exchanges false negatives for false positives.  Adjusting sensitivity
+requires changing the hard threshold~$T$, but this adjustment is global---it shifts
+the operating point identically for all individuals and all activities.
+
+\textbf{No principled threshold selection.}  The threshold $T$ is chosen by a
+combination of empirical cross-validation and clinical convention.  There is no
+statistical framework for selecting $T$ that is optimal under a specified loss
+function.  In particular, the $F_2$-optimal threshold---which depends on the
+class-imbalance ratio in a given deployment population---cannot be identified from
+first principles without a probabilistic model.
+
+\textbf{No subject-specific adaptation.}  A single threshold $T$ is applied to all
+individuals.  An active person with a vigorous gait produces baseline $\mathrm{SMV}$
+values that approach the threshold during normal activity, generating chronic false
+alarms.  A frail elderly person with a low-energy fall may not reach the threshold
+at all.  The threshold detector has no mechanism to adjust to individual motion
+dynamics because it has no subject-level probabilistic model.
+
+\subsection{Comparison with the present work}
+
+The present thesis replaces the scalar hard decision with a calibrated posterior
+probability $f_\theta(\phi_\lambda(w)) \in [0,1]$.  The decision threshold $\tau$
+is then a continuous parameter that can be set to maximize $F_2$ on a per-subject
+basis.  The threshold sweep over
+$\mathcal{T}=\{0.05,0.10,\ldots,0.95\}$ identifies the subject-optimal $\tau^*(s)$
+retrospectively, and the gains---up to $+0.12$ units of $F_2$ on individual
+subjects---demonstrate that subject-specific calibration provides value that is
+structurally inaccessible to a global threshold detector.
+
+% ─────────────────────────────────────────────────────────────
+\section{Statistical Feature Methods}
+\label{subsec:rw-statistical}
+
+\subsection{Method family}
+
+The dominant paradigm in wearable fall detection from the mid-2000s through the
+mid-2010s combined handcrafted feature extraction with a standard supervised
+classifier.  A window $w$ of length $L$ is mapped to a fixed-dimensional vector
+$\phi_{\mathrm{hand}}(w)\in\R^d$ by computing scalar statistics of the raw signal
+or its frequency-domain representation.  Typical time-domain features include the
+window mean, variance, range, peak value, root mean square, and signal-magnitude
+area; typical frequency-domain features include spectral energies in low-frequency
+bands, peak frequency, and spectral entropy~\parencite{igual2013challenges,
+delahoz2014survey}.  These features are fed to a classifier---most commonly
+support vector machines, $k$-nearest neighbours, or decision trees---trained on
+labeled windows from a fixed dataset.
+
+Surveys by Igual et al.~\parencite{igual2013challenges} and Delahoz and
+Labrador~\parencite{delahoz2014survey} catalogue dozens of systems built on this
+template and report accuracy figures in the range $90\%$--$99\%$ on controlled
+datasets.  These figures are broadly consistent across methods, suggesting that
+the feature choice matters less than the evaluation protocol: studies reporting
+the highest scores tend to use random train-test splits ignoring subject membership,
+which inflates performance by allowing the model to memorize individual quirks
+rather than generalize across persons.
+
+\subsection{Mathematical limitations}
+
+\textbf{Absence of a stability certificate.}  The relationship between the
+input perturbation $\|w - w'\|$ and the feature perturbation
+$\|\phi_{\mathrm{hand}}(w) - \phi_{\mathrm{hand}}(w')\|$ is not bounded in any
+useful way for handcrafted statistics.  A small noise perturbation of a signal
+window can produce an arbitrarily large change in a feature that includes a
+zero-crossing count, an extremum detection, or a threshold-based spectral band
+energy.  This instability is not a problem when training and test data come from
+the same sensor and subject population, but it becomes significant under sensor
+substitution, mounting-position variation, or cross-dataset evaluation.
+
+\textbf{No geometric grounding.}  The feature set is selected by domain intuition
+and validated empirically.  There is no underlying theory that explains why the
+chosen statistics should separate falls from activities of daily living, nor any
+guarantee that the same statistics remain discriminative when the population,
+sensor, or activity set changes.  In the language of learning theory, the
+inductive bias of the feature extractor is implicit and uncontrolled.
+
+\textbf{Fixed feature dimension with no adaptation.}  The dimension $d$ is fixed by
+the feature recipe and cannot be adjusted to the dataset geometry.  Different
+datasets exhibit different fall dynamics---controlled laboratory falls versus
+naturalistic community falls, elderly populations versus young adults---but the
+feature extractor is invariant to these differences.  The hyperparameter of this
+approach is the classifier, not the feature extractor itself.
+
+\textbf{Subject-general evaluation conflates variability sources.}  Most papers in
+this family report a single aggregate accuracy figure without distinguishing
+within-subject repeatability from across-subject generalization.  As a consequence,
+it is unclear whether the reported scores reflect a model that generalizes to new
+individuals or merely one that memorizes the subjects present in the training fold.
+
+\subsection{Comparison with the present work}
+
+The feature map $\phi_\lambda$ of the present thesis differs from handcrafted
+features in three respects.
+
+First, the Cohen--Steiner stability theorem provides a formal Lipschitz bound:
+small noise perturbations of the input window produce at most equally small
+perturbations of the persistence diagram, and hence of $\phi_\lambda$.  This
+guarantee is a mathematical theorem, not an empirical observation, and it holds
+for any signal, any subject, and any sensor.
+
+Second, the feature extractor is parameterized by $\lambda\in\Lambda$ and the
+optimal $\lambda^*_K$ is identified by Bayesian search over a nontrivial search
+space.  Different datasets converge to different configurations (SparseRips at 5~s
+for MobiFall; Alpha at 1~s for SisFall; Rips at 1~s for FAD\_40Hz), demonstrating
+that dataset-specific geometry is captured by the parameterisation.  No handcrafted
+feature family has an analogous adaptation mechanism.
+
+Third, the evaluation strictly separates subject-level generalization from
+within-subject repeatability by using a leave-one-subject-out protocol with
+$R=15$ repetitions, reporting both the mean and the 95\% confidence interval
+for each combination of dataset, classifier, and protocol.
+
+% ─────────────────────────────────────────────────────────────
+\section{Deep Learning Approaches}
+\label{subsec:rw-dl}
+
+\subsection{Method family}
+
+Convolutional neural networks (CNNs), recurrent networks (LSTMs and GRUs), and
+more recently transformer-based architectures have been applied to wearable fall
+detection with the aim of learning discriminative representations directly from
+raw or minimally processed inertial data.  Wang et al.~\parencite{wang2020falldl}
+demonstrated that a multi-scale CNN applied to three-axis accelerometer windows
+achieves competitive sensitivity and specificity on MobiFall and SisFall without
+manual feature engineering.  Batchuluun et al.~\parencite{batchuluun2022deep} provide
+a systematic review of deep-learning fall detection systems published between 2018
+and 2022 and identify CNN-LSTM hybrids and attention-based models as the current
+state of the art on standard benchmarks, with reported $F_1$ scores above $0.95$
+on several controlled datasets.
+
+The apparent performance advantage of deep models over classical methods is partly
+attributable to their ability to capture temporal structure across multiple scales
+simultaneously, and partly to methodological differences: deep learning papers tend
+to use larger datasets and more favorable evaluation protocols than their classical
+counterparts, making direct comparison difficult.
+
+\subsection{Engineering and scientific limitations}
+
+\textbf{GPU dependency.}  Training a competitive deep network on inertial windows
+requires GPU compute for gradient-based optimisation, which is practical in a
+research setting but problematic for deployment on the battery-constrained processors
+of wearable devices.  Inference may be feasible on a smartphone CPU with quantized
+models, but training---and therefore retraining for personalisation---is not.
+
+\textbf{Opacity.}  The features learned by a deep network's intermediate layers are
+not interpretable in terms of the physical signal.  There is no explanation for why
+a particular window is classified as a fall that a clinician or system designer can
+evaluate independently of the training data.  TDA features, by contrast, have a direct
+geometric interpretation: H$_0$ statistics measure the spread of the delay-embedded
+cloud (cluster count and birth-death lifetime distribution), and H$_1$ statistics
+measure the presence of loops (periodic or oscillatory structure).
+
+\textbf{No formal stability guarantee.}  Adversarial-robustness research has
+repeatedly demonstrated that small, human-imperceptible perturbations of the input
+can reverse the output of a deep classifier.  For a safety-critical fall-detection
+system, the absence of a stability certificate is a principled concern: a small
+sensor hardware change, a firmware update affecting the analog front-end, or a
+change in mounting position can degrade performance in ways that are unpredictable
+without re-evaluation.  The Cohen--Steiner bound of TDA provides a certificate that
+does not depend on the training distribution.
+
+\textbf{The ``trains once, deploys forever'' paradigm.}  Deep models are trained on
+a fixed corpus and deployed without adaptation.  Subject-specific personalisation
+requires either fine-tuning---which demands labeled falls from the target
+individual---or meta-learning frameworks that introduce significant additional
+complexity and still require some labeled falls at deployment time.  In the present
+thesis, subject-level adaptation is achieved by a threshold sweep that requires no
+labeled falls, no model parameters to update, and no access to the training corpus.
+
+\textbf{Computational cost at scale.}  The pipeline introduced in this thesis
+consumed approximately 75~minutes of CPU time for the Bayesian representation search
+on a 40-core server.  This cost is paid once per dataset, not per user.
+Training a competitive deep model requires comparable or greater wall-clock time
+and additionally requires GPU hardware.  For deployments targeting resource-limited
+clinical or community settings, the CPU-only profile of the TDA pipeline is a
+meaningful engineering advantage.
+
+\subsection{Comparison with the present work}
+
+The present thesis does not claim to match or exceed state-of-the-art deep learning
+scores on fall detection benchmarks.  The purpose is different: to establish whether
+a mathematically well-founded, computationally lightweight, and interpretable
+pipeline can achieve strong $F_2$ scores under a rigorous subject-aware evaluation.
+The answer is affirmative for two of the three datasets ($F_2 \geq 0.93$ on SisFall
+and FAD\_40Hz) and satisfactory for the third ($F_2 \geq 0.88$ on MobiFall).  The
+TDA pipeline achieves these results on a CPU without GPU access, with formally
+certified feature stability, and with an interpretable feature space---properties
+that deep models do not offer jointly.
+
+% ─────────────────────────────────────────────────────────────
+\section{Topological Data Analysis for Time-Series Classification}
+\label{subsec:rw-tda}
+
+\subsection{Persistent homology in applied settings}
+
+The use of persistent homology as a feature extractor for time-series classification
+has grown substantially since the early 2010s, following the development of
+computationally efficient boundary matrix reduction
+algorithms~\parencite{edelsbrunner2002topological} and their implementation in
+open-source libraries such as GUDHI~\parencite{gudhi} and Ripser.
+
+Pereira and de Mello~\parencite{pereira2015persistent} applied persistence diagrams to
+time-series classification in several benchmark domains and showed that topological
+features are competitive with or superior to classical statistical features when the
+discriminative signal is encoded in the \emph{shape} of short segments rather than
+their amplitude or frequency content.  Umeda~\parencite{umeda2017time} extended this line
+to multivariate time series and demonstrated that the combination of $H_0$ and $H_1$
+features provides complementary information not captured by either alone.
+
+Gidea and Katz~\parencite{gidea2018topological} applied TDA to financial time series,
+showing that topological features of sliding-window point clouds detect market
+instability with a lead time not accessible to standard spectral methods.  Their
+work established the delay-embedding framework---building a point cloud from lagged
+copies of a scalar signal and computing its persistent homology---as a broadly
+applicable TDA pipeline.  The pipeline introduced in the present thesis follows
+this framework but extends it with a systematic search over the embedding and
+filtration parameters rather than fixing them a priori.
+
+\subsection{TDA for activity recognition and wearable signals}
+
+Ott and Demir~\parencite{ott2017topological} applied TDA features to human activity
+recognition (HAR) from smartphone accelerometer data.  Using a fixed sliding window
+and pre-selected embedding parameters, they showed that persistence statistics
+achieve accuracy comparable to handcrafted features on a standard HAR benchmark.
+Xu et al.~\parencite{xu2019topological} similarly used TDA to distinguish activity classes
+in a multiclass HAR setting, reporting improvements over baseline statistical
+features on several benchmark datasets.
+
+These works establish the viability of persistent homology for wearable inertial
+classification, but differ from the present thesis in several ways that limit their
+direct applicability to the fall detection problem.
+
+\textbf{Objective.}  Both Ott et al.\ and Xu et al.\ optimise accuracy in a balanced
+multiclass setting.  Fall detection is a binary problem with severe class imbalance,
+and the appropriate objective is recall-oriented ($F_2$) rather than accuracy.
+The distinction matters: a classifier that maximizes accuracy on an imbalanced dataset
+can do so by predicting the majority class (non-fall) for almost all windows, achieving
+high accuracy at the cost of near-zero recall.
+
+\textbf{Evaluation protocol.}  The HAR studies cited above use random train-test
+splits that do not control for subject membership, which inflates performance
+estimates for any method by allowing individual-specific patterns to leak from
+training to test.  The present thesis strictly enforces subject separation via
+leave-one-subject-out cross-validation.
+
+\textbf{Hyperparameter treatment.}  Prior TDA-for-wearables works fix the embedding
+dimension $m$, delay $\tau$, and filtration type $c$ either by prior convention or
+by a coarse manual grid.  The present thesis treats the full hyperparameter tuple
+$\lambda=(w_\mathrm{sec}, m, \tau, r, c, d_\mathrm{met}, \varepsilon, q)$ as the
+primary object of study and identifies the optimal tuple per dataset via 200
+iterations of Bayesian search.  The finding that the optimal complex type differs
+across all three datasets (SparseRips, Alpha, Rips) is a direct consequence of this
+systematic search; it could not have been discovered by fixing the complex type to a
+convention.
+
+\textbf{Personalisation.}  Neither Ott et al.\ nor Xu et al.\ report subject-level
+personalisation results or analyse the distribution of per-subject gains.  The
+present thesis treats the distribution of the sweep gain $\Delta F_2(s)$ as a
+scientific object in its own right, showing that it is right-skewed and
+dataset-dependent and that its coefficient of variation exceeds $50\%$ in all cases.
+
+% ─────────────────────────────────────────────────────────────
+\section{Positioning of the Present Work}
+\label{subsec:rw-positioning}
+
+Table~\ref{tab:rw-comparison} summarises the structural differences between the
+four approaches surveyed above and the present thesis across six dimensions.
+
+\begin{table}[h!]
+\centering
+\caption{Structural comparison of fall detection and TDA-for-wearables approaches.
+  \checkmark\ = property satisfied; $\times$ = property absent; $\sim$ = partially
+  satisfied.}
+\label{tab:rw-comparison}
+\footnotesize
+\begin{tabularx}{\textwidth}{lXXXXX}
+\toprule
+\textbf{Property} &
+\textbf{Threshold} &
+\textbf{Stat.\ features} &
+\textbf{Deep learning} &
+\textbf{TDA-HAR} &
+\textbf{This work} \\
+\midrule
+Probabilistic output           & $\times$ & \checkmark & \checkmark & \checkmark & \checkmark \\
+Formal stability certificate   & $\times$ & $\times$   & $\times$   & \checkmark & \checkmark \\
+Dataset-specific tuning        & $\times$ & $\times$   & $\sim$     & $\times$   & \checkmark \\
+Subject-aware evaluation       & $\times$ & $\sim$     & $\sim$     & $\times$   & \checkmark \\
+Recall-oriented objective      & $\times$ & $\sim$     & $\sim$     & $\times$   & \checkmark \\
+CPU-only deployment            & \checkmark & \checkmark & $\times$ & \checkmark & \checkmark \\
+Subject-level personalisation  & $\times$ & $\times$   & $\times$   & $\times$   & \checkmark \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The table makes the novelty of the present work concrete.  No prior approach combines
+a formal stability certificate (Theorem), dataset-specific parameterisation (via
+Bayesian search), subject-aware evaluation (LOSO with repetitions), a recall-oriented
+objective ($F_2$), and subject-level personalisation (threshold sweep) within a
+single unified pipeline.  The closest prior work---TDA for HAR---satisfies the
+stability and CPU constraints but lacks all three evaluation properties.
+
+The gap that this thesis directly addresses is the intersection of the last four
+rows: a principled, recall-oriented, subject-aware, personalised fall detector that
+carries a mathematical stability guarantee and is deployable on consumer hardware
+without GPU acceleration.
+

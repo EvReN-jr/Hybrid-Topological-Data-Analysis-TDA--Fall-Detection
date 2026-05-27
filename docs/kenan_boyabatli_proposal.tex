@@ -1,0 +1,373 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage[colorlinks=true,linkcolor=cyan,citecolor=magenta,urlcolor=blue]{hyperref}
+\usepackage{enumerate}
+
+\newtheorem{hypothesis}{Hypothesis}[section]
+\newtheorem{remark}[hypothesis]{Remark}
+\newtheorem{definition}[hypothesis]{Definition}
+
+\DeclareMathOperator{\argmax}{argmax}
+\DeclareMathOperator{\argmin}{argmin}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator{\Cov}{Cov}
+\DeclareMathOperator{\diag}{diag}
+\DeclareMathOperator{\PH}{PH}
+\DeclareMathOperator{\Pers}{Pers}
+\DeclareMathOperator{\Rec}{Rec}
+\DeclareMathOperator{\Prec}{Prec}
+\DeclareMathOperator{\Acc}{Acc}
+
+\newcommand{\R}{\mathbb R}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Prob}{\mathbb P}
+\newcommand{\1}{\mathbf 1}
+\newcommand{\D}{\mathcal D}
+\newcommand{\W}{\mathcal W}
+\newcommand{\T}{\mathcal T}
+\newcommand{\X}{\mathcal X}
+\newcommand{\Y}{\mathcal Y}
+\newcommand{\Sset}{\mathcal S}
+\newcommand{\F}{\mathcal F}
+\newcommand{\loss}{\mathcal L}
+
+\setlength{\parindent}{0mm}
+\setlength{\parskip}{2mm}
+
+\title{Proposal:\\
+Topological Data Analysis for Recall-Oriented Wearable Fall Detection:\\
+Subject-General and Subject-Personalized Evaluation}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Automatic fall detection from wearable inertial sensors is by now a mature engineering problem in the narrow sense that many pipelines achieve high scores on controlled benchmark datasets. It is not yet a settled scientific problem. The difficult points are no longer merely whether one can separate falls from activities of daily living on a single dataset, but whether the representation is robust across datasets, whether the decision rule is stable across subjects, and whether subject-specific adaptation genuinely improves performance rather than merely producing a few favorable case studies. Recent literature repeatedly emphasizes these issues: public datasets differ substantially in sensing conditions and subject populations, and cross-dataset performance often degrades sharply relative to within-dataset testing. In parallel, persistent homology and related tools from topological data analysis have become an increasingly active framework for time-series classification, precisely because they encode shape information across scales and are often robust to local noise.
+
+The present thesis is built around a simple claim. For wearable fall detection, a suitably tuned topological representation of short inertial windows can produce strong recall-oriented classifiers with comparatively simple downstream decision models, but the resulting performance is expected to depend strongly on dataset geometry and only selectively on subject personalization. The preliminary experiments motivating this proposal already point in that direction. Three public datasets were studied using 24-dimensional topological feature vectors, an Optuna-driven hyperparameter search over the delay-embedding and simplicial-complex construction, and two downstream classifiers, namely logistic regression and support vector machines. The strongest preliminary results occur on SisFall and FAD\_40Hz, while MobiFall is materially harder. Moreover, the personalized evaluation is heterogeneous: some subjects benefit dramatically, but no uniform personalized improvement is supported by the present evidence.
+
+The thesis therefore has two intertwined aims. The first is methodological: to construct and analyze a fall-detection pipeline in which topological summaries extracted from short time windows are tuned systematically and evaluated under subject-based validation. The second is scientific: to determine which parts of the performance arise from the topological representation itself, which parts arise from the classifier, and which parts can or cannot be attributed to subject-specific thresholding.
+
+The project is empirical in its center of gravity, but it is not a mere benchmark exercise. It treats the representation map from signal window to topological summary as the main mathematical object under study and asks how the parameters of this map interact with the downstream statistical decision rule.
+
+\section{Formal problem setting}
+
+Let $K\in\{\mathrm{MobiFall},\mathrm{SisFall},\mathrm{FAD\_40Hz}\}$ denote one of the benchmark datasets. Each dataset consists of labeled inertial time series together with subject labels. After resampling to the target frequency, we regard each recording as a discrete signal
+\[
+  x\colon \{0,1,\dots,T\}\longrightarrow \R^p,
+\]
+where $p$ is the sensor dimension. A binary label $y\in\{0,1\}$ indicates whether the segment contains a fall. A subject index $s\in\Sset$ records the person from whom the signal originates.
+
+For a window length $L$ and starting index $t$, let
+\[
+  w_{t,L}(x):=(x_t,x_{t+1},\dots,x_{t+L-1})
+\]
+be the corresponding signal window. The topological feature extractor depends on a hyperparameter tuple
+\[
+  \lambda=(w_{\mathrm{sec}},m,\tau,r,c,d_{\mathrm{met}},\varepsilon,q),
+\]
+where $w_{\mathrm{sec}}$ is the window length in seconds, $m$ the embedding dimension, $\tau$ the delay, $r$ the stride factor, $c\in\{\mathrm{Alpha},\mathrm{Rips},\mathrm{SparseRips}\}$ the complex type, $d_{\mathrm{met}}$ the metric, $\varepsilon$ the filtration-scale control, and $q$ the subsampling rule.
+
+Given a window $w$, the pipeline first forms a finite point cloud by a delay embedding and a subsampling procedure,
+\[
+  P_\lambda(w)\subseteq \R^{mp}.
+\]
+From the filtered simplicial complex built on $P_\lambda(w)$ one computes persistent homology in the chosen homological degrees. The resulting persistence diagrams are then vectorized into a fixed feature vector
+\[
+  \phi_\lambda(w)\in \R^{24}.
+\]
+The thesis will keep the final vector dimension fixed at $24$, as in the preliminary study, so that the central variation lies in the geometry of the construction rather than in trivial growth of ambient dimension.
+
+A probabilistic classifier is then a map
+\[
+  f_\theta\colon \R^{24}\longrightarrow [0,1],
+\]
+where $f_\theta(\phi_\lambda(w))$ is interpreted as the posterior probability of a fall for the window $w$. In the first phase of the thesis the model class will be restricted to
+\[
+  \F_{\mathrm{lin}}=\{\text{balanced logistic regression models}\}
+\]
+and
+\[
+  \F_{\mathrm{svm}}=\{\text{balanced SVM models with calibrated probabilities}\}.
+\]
+This restriction is intentional. The purpose of the thesis is not to win a leaderboard by escalating model complexity, but to test whether the topological representation already carries most of the predictive signal.
+
+For a threshold $\tau\in(0,1)$, the subject-general decision rule is
+\[
+  \widehat y(w)=\1\{f_\theta(\phi_\lambda(w))\geq \tau\}.
+\]
+For subject-personalized evaluation, one allows a threshold $\tau_s$ depending on the test subject:
+\[
+  \widehat y_s(w)=\1\{f_\theta(\phi_\lambda(w))\geq \tau_s\}.
+\]
+A crucial methodological point is that any personalized threshold $\tau_s$ must be estimated from data disjoint from the final test segment of subject $s$; otherwise the personalized protocol would be contaminated by leakage.
+
+The principal metric is the $F_\beta$-score with $\beta=2$,
+\[
+  F_2
+  =
+  (1+2^2)
+  \frac{\Prec\cdot\Rec}{2^2\Prec+\Rec}
+  =
+  5\,\frac{\Prec\cdot\Rec}{4\Prec+\Rec},
+\]
+so the training and selection protocol deliberately prioritizes recall over precision. This is appropriate for fall detection provided the resulting false-alarm burden is reported honestly and not hidden behind a single scalar.
+
+\section{Thesis statement and novelty}
+
+The central thesis is the following.
+
+\medskip
+
+\emph{Persistent-homology-based topological summaries of wearable inertial windows can support highly effective recall-oriented fall detection on standard benchmark datasets, but the efficacy of the method is controlled primarily by the geometry of the topological representation and only secondarily by the choice of downstream classifier; in addition, subject personalization acts as a heterogeneous subject-level intervention rather than as a uniformly beneficial enhancement.}
+
+\medskip
+
+The novelty of the project is not the isolated use of persistent homology, nor the isolated use of logistic regression or SVMs, nor the isolated use of public fall datasets. The novelty lies in their systematic combination in a single, subject-aware experimental program with four features.
+
+First, the topological front end is treated as the primary mathematical object, and its geometry is tuned over a nontrivial search space including window size, embedding dimension, delay, metric, and simplicial-complex type.
+
+Second, the evaluation is explicitly recall-oriented. Rather than maximizing accuracy or even $F_1$, the project asks what can be achieved when the objective is shifted toward missed-fall minimization.
+
+Third, the thesis places subject-general and subject-personalized evaluation side by side under one protocol. This is methodologically important because personalized performance is often reported only through isolated successes.
+
+Fourth, the thesis treats dataset dependence as a positive scientific question. If different datasets systematically prefer different topological constructions, that is not a nuisance to be suppressed; it is evidence that the relevant geometry of the signal differs across acquisition regimes.
+
+\section{Research hypotheses}
+
+The proposal is organized around four hypotheses.
+
+\begin{hypothesis}[Representation effectiveness]\label{hyp:effectiveness}
+There exist topological hyperparameters $\lambda$ and a classifier $f_\theta$ such that, under subject-based evaluation, the mean subject-general recall is high and the mean subject-general $F_2$ is competitive across all three datasets. In particular, the method should attain strong performance on SisFall and FAD\_40Hz and materially weaker, but still nontrivial, performance on MobiFall.
+\end{hypothesis}
+
+This hypothesis is intentionally asymmetric across datasets, because the preliminary experiments already suggest that a uniform difficulty model is false.
+
+\begin{hypothesis}[Dataset-specific topological geometry]\label{hyp:dataset-specific}
+The optimal hyperparameter tuple $\lambda^\ast_K$ depends on the dataset $K$. More precisely, if one estimates
+\[
+  \lambda^\ast_K\in \argmax_\lambda \; \E\bigl[F_2\mid K,\lambda\bigr],
+\]
+then at least two of the three datasets have distinct optimizers, and transplanting an optimizer from one dataset to another incurs a measurable drop in mean subject-general $F_2$.
+\end{hypothesis}
+
+This is the formal version of the observation that window length, complex type, and related geometric parameters are not universal constants of fall detection.
+
+\begin{hypothesis}[Representation dominates classifier choice]\label{hyp:classifier-secondary}
+After tuning the topological representation, the performance gap between the best logistic-regression model and the best SVM model is small relative to the performance gap between a well-tuned and a poorly tuned topological representation. Equivalently, most of the signal resides in $\phi_\lambda$, not in the complexity of the classifier class.
+\end{hypothesis}
+
+\begin{hypothesis}[Heterogeneous personalization]\label{hyp:personalization}
+Let
+\[
+  \Delta_s:=F_{2,s}^{\mathrm{pers}}-F_{2,s}^{\mathrm{gen}}
+\]
+be the subject-level gain of personalized thresholding. Then the distribution of $\Delta_s$ is heterogeneous: it contains both positive and negative values, and its mean depends on the dataset. In particular, personalization is not expected to yield a uniform positive shift across all subjects and all datasets.
+\end{hypothesis}
+
+Hypothesis~\ref{hyp:personalization} is conceptually important. It states that personalization should be modeled as a random subject-level effect, not as a theorem.
+
+\section{Numerical methodology}
+
+\subsection{Datasets and preliminary evidence}
+
+The preliminary report underlying this proposal studies three benchmark datasets and reports fixed 24-dimensional topological feature vectors for each window. The corresponding feature matrices have sizes
+\[
+  1808\times 24 \quad (\mathrm{MobiFall}),
+  \qquad
+  7738\times 24 \quad (\mathrm{SisFall}),
+  \qquad
+  9481\times 24 \quad (\mathrm{FAD\_40Hz}).
+\]
+The current best search outputs are dataset-dependent: MobiFall prefers a $2.5$ second window with a SparseRips complex, SisFall prefers a $1.0$ second window with an Alpha complex, and FAD\_40Hz prefers a $1.5$ second window with a SparseRips complex. These are not yet final scientific conclusions, but they strongly motivate Hypothesis~\ref{hyp:dataset-specific}.
+
+\subsection{Hyperparameter search}
+
+The thesis will use a two-level selection protocol. The outer level is subject-based leave-one-subject-out evaluation. For each held-out subject, all model selection is performed without using that subject's final test labels. The inner level uses cross-validation over the remaining subjects and an Optuna search over the representation and model hyperparameters.
+
+The search space is initially inherited from the preliminary study:
+\begin{align*}
+  w_{\mathrm{sec}}&\in\{1.0,1.5,\dots,5.0\},
+  &m&\in\{2,3,4,5\},
+  &\tau&\in\{1,2,3,4,5\},\\
+  r&\in\{1,2,4\},
+  &c&\in\{\mathrm{Alpha},\mathrm{Rips},\mathrm{SparseRips}\},
+  &d_{\mathrm{met}}&\in\{\mathrm{euclidean},\mathrm{cosine},\mathrm{manhattan},\mathrm{chebyshev}\},
+\end{align*}
+with auxiliary filtration and subsampling parameters retained from the existing code base.
+
+For logistic regression the first candidate family is
+\[
+  \theta=(C,\pi),
+  \qquad
+  C\in\{10^{-2},10^{-1},1,10,100\},
+  \quad
+  \pi\in\{\ell_1,\ell_2\},
+\]
+using balanced class weights. For SVM the first candidate family is
+\[
+  \theta=(C,\kappa),
+  \qquad
+  C\in\{0.1,1,10,100\},
+  \quad
+  \kappa\in\{\mathrm{linear},\mathrm{rbf}\},
+\]
+again with balanced class weights and calibrated probabilities.
+
+\subsection{Decision rules and calibration}
+
+Because $F_2$ is threshold-sensitive, threshold selection is part of the model and not a cosmetic post-processing step. For the subject-general setting, the threshold $\tau$ will be selected on validation folds only. For the subject-personalized setting, one of the following two admissible schemes will be used, and the thesis will state explicitly which one is adopted.
+
+Either one reserves a calibration subset from the held-out subject and chooses $\tau_s$ on that calibration subset, or one estimates a subject-specific threshold from prior windows of that subject available before the evaluation horizon. In either case, final reporting is performed on data not used for threshold fitting.
+
+\subsection{Baselines and ablations}
+
+The present experiments already compare two classifiers on the same topological representation, but a thesis of this kind requires stronger controls. Three additional baseline families will therefore be included.
+
+The first baseline is a classical statistical-feature model built from time-domain summaries such as means, variances, norms, energy measures, and signal-magnitude-area-type aggregates.
+
+The second baseline is a spectral-feature model using short-window frequency summaries.
+
+The third baseline is a threshold-based detector representative of lightweight wearable implementations.
+
+In addition, the thesis will include three ablation studies.
+
+The first ablation removes delay embedding while leaving the downstream classifier fixed.
+
+The second ablation fixes the simplicial-complex type and varies only window geometry.
+
+The third ablation fixes the representation and compares logistic regression and SVM directly.
+
+These ablations are necessary, because without them one cannot tell whether the observed gains are topological, geometric, or merely thresholding artifacts.
+
+\section{Evaluation criteria and statistical testing}
+
+For each subject $s$ and each dataset $K$, the thesis will report
+\[
+  \Acc_{K,s},\qquad \Rec_{K,s},\qquad \Prec_{K,s},\qquad F_{1,K,s},\qquad F_{2,K,s},
+\]
+for both the subject-general and subject-personalized protocols. The primary estimands are the mean subject-level metrics
+\[
+  \overline{F}_{2,K}^{\mathrm{gen}}:=\frac{1}{|\Sset_K|}\sum_{s\in\Sset_K}F_{2,K,s}^{\mathrm{gen}},
+  \qquad
+  \overline{F}_{2,K}^{\mathrm{pers}}:=\frac{1}{|\Sset_K|}\sum_{s\in\Sset_K}F_{2,K,s}^{\mathrm{pers}}.
+\]
+The secondary estimands are the distributions of the subject-level gains
+\[
+  \Delta_{K,s}=F_{2,K,s}^{\mathrm{pers}}-F_{2,K,s}^{\mathrm{gen}}.
+\]
+
+The statistical procedures will be as follows.
+
+For within-dataset comparison of two pipelines on the same subjects, the principal analysis will use paired subject-level differences together with bootstrap confidence intervals. When the number of subjects is small, permutation tests based on the signs of the paired differences will also be reported.
+
+For Hypothesis~\ref{hyp:dataset-specific}, the thesis will compare the cross-applied hyperparameter tuples $\lambda^\ast_{K_1}$ and $\lambda^\ast_{K_2}$ on each dataset and report the associated drops in mean $F_2$.
+
+For Hypothesis~\ref{hyp:classifier-secondary}, the thesis will compare
+\[
+  \bigl|\overline{F}_{2,K}^{\mathrm{svm}}-\overline{F}_{2,K}^{\mathrm{logreg}}\bigr|
+\]
+against the variation induced by changing $\lambda$ while keeping the classifier family fixed.
+
+For Hypothesis~\ref{hyp:personalization}, the thesis will report not only the mean of $\Delta_{K,s}$ but also its sign pattern and dispersion,
+\[
+  \overline{\Delta}_K,
+  \qquad
+  \Var(\Delta_{K,s}),
+  \qquad
+  \Prob(\Delta_{K,s}>0),
+\]
+so that personalization is evaluated as a distributional phenomenon.
+
+A methodological correction to the current report is built into this proposal. Headline maxima such as the best single-subject score or the best Optuna objective value will not be used as the main evidence. The thesis will privilege subject-level averages, dispersion, and uncertainty estimates.
+
+\section{Expected contributions}
+
+The expected contributions of the thesis are fivefold.
+
+First, it will provide a mathematically explicit and computationally reproducible TDA pipeline for wearable fall detection based on delay embedding, persistent homology, and low-dimensional vectorization.
+
+Second, it will determine whether the strongest gains arise from the topological representation or from the classifier class.
+
+Third, it will clarify the role of dataset geometry by showing whether different benchmark datasets prefer systematically different topological constructions.
+
+Fourth, it will replace anecdotal claims about subject personalization by a statistically grounded subject-level analysis.
+
+Fifth, it will provide a negative contribution that is scientifically valuable: if personalized thresholding is not uniformly beneficial, then future work must stop treating it as an automatic improvement and instead ask which subject-level covariates govern its success or failure.
+
+\section{Limitations and scope}
+
+The proposal is intentionally modest about what the thesis can establish.
+
+It will not prove that the method is ready for clinical or commercial deployment. Benchmark datasets of simulated or semi-controlled falls are useful, but they do not by themselves settle the real-world false-alarm burden.
+
+It will not claim that topological features dominate all deep-learning alternatives. The scope is more specific: to determine whether topological summaries yield a strong and interpretable lightweight pipeline in the recall-oriented regime.
+
+It will not claim that subject personalization is uniformly advantageous. On the contrary, one of the main scientific possibilities is that personalization helps only a subset of subjects and perhaps only on some datasets.
+
+Finally, the first phase of the thesis will keep the feature dimension fixed at $24$ and the downstream models relatively simple. This is a methodological choice, not a weakness. Without such restraint, one cannot tell where the performance is actually coming from.
+
+\section{Conclusion}
+
+The proposal advances a precise thesis. In wearable fall detection, the main object of interest should not be the downstream classifier in isolation but the map from a short inertial window to a stable topological summary. If that map is well chosen, then comparatively simple classifiers already achieve strong recall-oriented performance. If it is poorly chosen, no amount of downstream tuning compensates for the loss. The current experiments strongly suggest that this representation is effective, but also that its optimal geometry is dataset-dependent and that subject personalization is heterogeneous rather than universal.
+
+Accordingly, the proposed thesis will not be a generic ``apply TDA and report scores'' document. It will be a systematic study of how topological representations, classifier families, and subject-specific thresholds interact in recall-prioritized fall detection. Its principal contribution will be to convert promising but somewhat diffuse experimental evidence into a clear scientific account of what the method does, why it works where it works, and where its claims must stop.
+
+\begin{thebibliography}{99}
+
+\bibitem{AkibaEtAl2019}
+T. Akiba, S. Sano, T. Yanase, T. Ohta, and M. Koyama,
+\emph{Optuna: A next-generation hyperparameter optimization framework},
+Proceedings of the 25th ACM SIGKDD International Conference on Knowledge Discovery \& Data Mining, 2019, 2623--2631.
+
+\bibitem{EdelsbrunnerHarer2010}
+H. Edelsbrunner and J. Harer,
+\emph{Computational Topology: An Introduction},
+American Mathematical Society, 2010.
+
+\bibitem{KaranEtAl2021}
+A. Karan, C. Koyluoglu, and A. Kaya,
+\emph{Time series classification via topological data analysis},
+Expert Systems with Applications \textbf{185} (2021), 115577.
+
+\bibitem{Ramachandran2020}
+A. Ramachandran and B. Karuppiah,
+\emph{A survey on recent advances in wearable fall detection systems},
+Sensors \textbf{20} (2020).
+
+\bibitem{RavishankerEtAl2021}
+N. Ravishanker, S. Khasawneh, and A. Perea,
+\emph{An introduction to persistent homology for time series},
+WIREs Computational Statistics \textbf{13} (2021), e1548.
+
+\bibitem{SilvaEtAl2024}
+C. A. Silva et al.,
+\emph{Cross-dataset evaluation of wearable fall detection systems using data from real falls and long-term monitoring of daily life},
+Measurement, 2024.
+
+\bibitem{SucerquiaEtAl2017}
+A. Sucerquia, J. D. Lopez, and J. F. Vargas-Bonilla,
+\emph{SisFall: A fall and movement dataset},
+Sensors \textbf{17} (2017), 198.
+
+\bibitem{VavoulasEtAl2014}
+G. Vavoulas, M. Pediaditis, C. Chatzaki, E. G. Spanakis, and M. Tsiknakis,
+\emph{The MobiFall dataset: Fall detection and classification with a smartphone},
+International Journal of Monitoring and Surveillance Technologies Research \textbf{2} (2014), no.~1, 44--56.
+
+\bibitem{PHReview2026}
+L. Guayac\'an et al.,
+\emph{Persistent homology for time series: a selective review},
+under review, 2026.
+
+\end{thebibliography}
+
+\end{document}

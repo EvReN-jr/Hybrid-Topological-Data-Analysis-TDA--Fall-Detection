@@ -1,241 +1,122 @@
-# Hybrid TDA-Based Fall Detection Framework
-## F2-Optimized, Subject-Independent and Subject-Specific Evaluation
+# Hybrid Topological Data Analysis for Wearable Fall Detection
+
+**M.Sc. Thesis — Istanbul Technical University, Graduate School (Mathematical Engineering)**
+
+- **Title (EN):** Topological Data Analysis of Wearable Sensor Signals: Development and Evaluation of Recall-Oriented Subject-General and Subject-Personalized Models
+- **Title (TR):** Giyilebilir Sensör Sinyalleriyle Topolojik Veri Analizi: Düşme Vakalarını Kaçırmamayı Önceleyen Genel ve Kişisel Modellerin Geliştirilmesi ve Değerlendirilmesi
+- **Author:** Kenan Evren Boyabatlı
+- **Advisor:** Prof. Dr. Atabey Kaygun
+- **Date:** June 2026
 
 ---
 
-## Abstract
+## Overview
 
-This project presents a hybrid Topological Data Analysis (TDA)-based fall detection framework optimized using the F2-score to prioritize recall. The system integrates delay embedding, landmark subsampling, persistent homology (Alpha, Rips, and Sparse Rips complexes), and statistical features into a unified 24-dimensional representation. Hyperparameters are optimized using Optuna, and evaluation is conducted using both subject-independent (Leave-One-Subject-Out) and subject-specific validation strategies. The framework is evaluated on three benchmark datasets: MobiFall, SisFall, and FAD_40Hz.
+This project detects human falls from short windows of wearable inertial (accelerometer/gyroscope)
+signals using **persistent homology**. Each window is mapped to a phase-space point cloud via a
+**delay embedding** (Takens), summarised with persistent homology in dimensions 0 and 1, and
+reduced to a compact **24-dimensional feature vector** (10 H0 statistics + 10 H1 statistics + 4
+signal-level descriptors). Simple classifiers (logistic regression, SVM) are trained on these
+features, with the topological hyperparameters selected by **Bayesian optimisation (TPE / Optuna)**.
 
----
+Because a missed fall is far costlier than a false alarm, every model is built **recall-oriented**:
+it is tuned and thresholded with the recall-weighted **F₂** score. The study evaluates two modelling
+regimes and compares them:
 
-# 1. Introduction
+- **Subject-General (LOSO):** one model trained across subjects, applied to an unseen subject.
+- **Subject-Personalized:** a separate model trained per subject (plus a cheap, retraining-free
+  per-subject threshold personalisation).
 
-Fall detection remains a critical problem in wearable sensing systems, particularly in healthcare monitoring for elderly populations. Traditional machine learning approaches rely on handcrafted statistical features, which may fail to capture the intrinsic geometric structure of motion signals.
+### Headline results (General / LOSO protocol, mean F₂)
 
-Topological Data Analysis (TDA) offers a powerful alternative by modeling the geometric and topological properties of time-series signals. This study proposes a hybrid TDA-based fall detection pipeline optimized for safety-oriented performance using the F2-score, where recall is emphasized over precision.
+| Dataset    | LR     | SVM    |
+|------------|--------|--------|
+| MobiFall   | 0.9049 | 0.8918 |
+| SisFall    | 0.9709 | 0.9700 |
+| FAD\_40Hz  | 0.9429 | 0.9592 |
 
----
-
-# 2. Datasets
-
-The framework is evaluated on:
-
-- MobiFall  
-  https://www.kaggle.com/datasets/kmknation/mobifall-dataset-v20/data  
-
-- SisFall  
-
-- FAD_40Hz  
-  https://www.kaggle.com/datasets/sankalpsinghvishen/derived-fallalld-dataset/data  
-
-All datasets are stored in SQLite format and processed under a unified protocol.
-
----
-
-# 3. Methodology
-
-## 3.1 Signal Preprocessing
-
-### Resampling
-
-All signals are resampled to:
-
-TARGET_FS = 50 Hz
-
-This ensures consistent temporal resolution across datasets.
-
-### Signal Magnitude Vector (SMV)
-
-For each tri-axial sensor group:
-
-SMV = sqrt(x² + y² + z²)
-
-This reduces orientation dependency and enhances fall peak localization.
-
-### Window Extraction
-
-win_sec ∈ [1.0, 5.0] (step = 0.5)
-
-The window is centered around fall peaks for fall trials and extracted sequentially for ADL trials.
+Recall stays above 0.95 across all dataset–classifier combinations. A feature-block ablation
+(see `results/ablation/`) shows that the discriminative topological signal is concentrated in
+**H0**, that the signal-vs-topology balance is dataset-dependent, that the **full** vector is always
+best, and that the block ordering is **classifier-invariant**.
 
 ---
 
-# 4. Topological Feature Extraction
+## Repository structure
 
-## 4.1 Delay Embedding
+```
+.
+├── thesis/              LaTeX source + figures + compiled tez.pdf
+├── code/
+│   ├── pipeline/        Main TDA + Optuna + LOSO/Personal protocol (uhem_big_optuna_v13.py),
+│   │                    feature-block ablation (ablation_run.py), SLURM job script
+│   ├── data_preparation/ Dataset parsing & merging into ML-ready stores
+│   ├── feature_extraction/ TDA feature pipelines (V1/V2/V3) + raw signal statistics
+│   ├── visualization/   Figure-generation scripts
+│   └── archive/         Earlier / superseded experiment scripts (kept for provenance)
+├── results/
+│   ├── Results_V15.db   Consolidated results: 24-dim feature matrices (at optimal λ) +
+│   │                    subject labels, 200 Optuna trials/dataset, per-subject metrics
+│   ├── study_v15.db     Optuna study database
+│   ├── Results_V15_Report.txt
+│   ├── ablation/        Feature-block ablation outputs (LR & SVM, JSON + logs)
+│   ├── archive/         Earlier result/study databases
+│   └── cluster_logs/    UHeM SLURM run logs
+├── notes/               Project context, advisor feedback, session log, status doc
+└── docs/                Dataset sources, DB schema, thesis proposal
+```
 
-If enabled, delay embedding reconstructs the phase space.
+### `Results_V15.db` feature layout
 
-dim ∈ [2, 5]  
-delay ∈ [1, 5]  
-stride_factor ∈ {1, 2, 4}
-
-Purpose:
-- Transform 1D signal into a geometric manifold
-- Reveal nonlinear temporal structure
-
-## 4.2 Landmark Selection
-
-LIMIT_POINTS = 150  
-sampling_method = maxmin
-
-MaxMin sampling selects geometrically diverse representative points.
-
-## 4.3 Simplicial Complex Construction
-
-The following complexes are considered:
-
-- Alpha Complex
-- Rips Complex
-- Sparse Rips Complex
-
-For Rips-based methods:
-
-metric ∈ {euclidean, cosine, manhattan, chebyshev}  
-eps_percentile ∈ {20, 40, 60, 80}
-
-The percentile-based epsilon ensures adaptive scale selection.
-
-## 4.4 Extracted Features
-
-Persistent homology is computed for:
-
-H0 (connected components)  
-H1 (loops)
-
-For each dimension, the following statistics are extracted:
-
-- Lifetime count ratio
-- Persistence entropy
-- Maximum lifetime
-- Mean lifetime
-- Standard deviation
-- Median
-- 25th and 75th percentiles
-- Quadratic and cubic weighted lifetime sums
-
-TDA features = 20  
-Acceleration statistics = 4  
-
-Total features = 24
+Each `features_<dataset>_server` table holds the 24-dim vector at the optimal configuration:
+`feat_0..9` = H0 persistence statistics, `feat_10..19` = H1 persistence statistics,
+`feat_20..23` = raw-signal descriptors (max, std, mean, range), plus `label` and `subject`.
 
 ---
 
-# 5. Optimization Strategy
+## Datasets (not included — public)
 
-Hyperparameter search is conducted using Optuna.
+The raw datasets and the derived ML-ready stores are **not committed** (≈25 GB). They are public:
 
-N_TRIALS = 200  
-Objective = F2-score (β = 2)
+| Dataset  | Sensor placement | Source |
+|----------|------------------|--------|
+| MobiFall v2.0 | Trouser pocket (phone) | Kaggle: `kmknation/mobifall-dataset-v20` |
+| SisFall  | Waist | Sucerquia et al., *Sensors* 2017 |
+| FallAllD (FAD\_40Hz derived) | Waist | Kaggle: `sankalpsinghvishen/derived-fallalld-dataset`; Saleh et al., *IEEE Sensors J.* 2021 |
 
-F2 = (5 × Precision × Recall) / (4 × Precision + Recall)
+Full provenance: `docs/Data_Sources.txt`.
 
-This prioritizes recall, which is critical in fall detection where false negatives are more harmful than false positives.
+### Large files excluded from the repository
 
----
+These are reproducible from the code + raw datasets and exceed GitHub's 100 MB file limit:
 
-# 6. Validation Protocol
-
-## 6.1 Subject-Independent Evaluation
-
-Leave-One-Subject-Out (LOSO):
-
-Train on N−1 subjects  
-Test on unseen subject  
-
-Ensures generalization capability.
-
-## 6.2 Subject-Specific Evaluation
-
-Training = 60%  
-Testing  = 40%
-
-Demonstrates personalized model performance.
-
-## 6.3 Threshold Optimization
-
-Decision thresholds are selected using Precision-Recall curves to maximize F2-score instead of using the default 0.5 probability.
+| File / type | Size | Notes |
+|-------------|------|-------|
+| `DataBases.rar` | 5.8 GB | Archive of all ML-ready databases |
+| `Data/archive_pckl/FallAllD.json` | 4.0 GB | Raw FallAllD dump |
+| `DataFirstTouch/*_ML_Ready*.db` | 0.1–4.7 GB | Per-dataset ML-ready SQLite stores |
+| `TDA_Features_Extraction_V*/*.csv` | up to 433 MB | Extracted feature matrices |
+| `RAW_Stats/*_Raw_Stats.csv` | up to 109 MB | Raw signal statistics |
+| `Failed_1/` | 1.4 GB | Earlier experiment outputs (scripts kept in `code/archive/`) |
+| Python `venv/` | — | Virtual environment |
 
 ---
 
-# 7. Optimal Hyperparameters per Dataset
+## Reproducing the results
 
-## MobiFall
+1. **Get the data:** download MobiFall, SisFall, FallAllD (see `docs/Data_Sources.txt`).
+2. **Prepare:** `code/data_preparation/` — parse and merge each dataset into ML-ready stores.
+3. **Extract features:** `code/feature_extraction/all_pipeline_V3.py` (+ `raw_stats.py`).
+4. **Train & evaluate:** `code/pipeline/uhem_big_optuna_v13.py` — Bayesian search over the
+   topological hyperparameters, then the Naive / General (LOSO) / Personal protocols with the
+   F₂-driven threshold sweep. Produces `Results_V15.db`.
+5. **Ablation:** `python code/pipeline/ablation_run.py LogReg` and `... SVM` (reads
+   `Results_V15.db`; reproduces the thesis headline F₂ and the feature-block ablation).
+6. **Thesis:** in `thesis/`, run `pdflatex tez.tex && biber tez && pdflatex tez.tex && pdflatex tez.tex`.
 
-Best F2 = 0.9749
+### Requirements
 
-win_sec = 2.5  
-complex_type = SparseRips  
-dim = 3  
-delay = 2  
-stride_factor = 1  
-metric = euclidean  
-eps_percentile = 40  
-
-## SisFall
-
-Best F2 = 0.9726
-
-win_sec = 1.0  
-complex_type = Alpha  
-dim = 5  
-delay = 5  
-stride_factor = 4  
-
-## FAD_40Hz
-
-Best F2 = 0.9855
-
-win_sec = 1.5  
-complex_type = SparseRips  
-dim = 4  
-delay = 4  
-stride_factor = 4  
-metric = cosine  
-eps_percentile = 20  
-
----
-
-# 8. Original Experimental Results
-
-## MobiFall (General Model – Selected Subjects)
-
-Logistic Regression (F2):
-
-Subject 2  → 0.8209  
-Subject 4  → 0.8219  
-Subject 10 → 0.8462  
-Subject 11 → 0.8571  
-
-SVM (Best Cases – F2):
-
-Subject 8  → 0.8955  
-Subject 10 → 0.8955  
-Subject 11 → 0.8955  
-
-## SisFall
-
-F2 > 0.98
-
-Subject 1  → 0.9973  
-Subject 17 → 0.9973  
-Subject 20 → 0.9918  
-
-## FAD_40Hz
-
-Subject 3  → 0.9904  
-Subject 8  → 0.9589  
-Subject 12 → 0.9711  
-
----
-
-# 9. Key Findings
-
-- Sparse Rips frequently outperformed Alpha in higher-dimensional embeddings.
-- Shorter windows were optimal for SisFall.
-- Cosine distance improved robustness in FAD_40Hz.
-- F2-based threshold optimization significantly increased recall stability.
-- Subject-independent validation is essential for real-world deployment.
-
----
+- **Python:** numpy, pandas, scikit-learn, gudhi, optuna, scipy
+- **LaTeX:** a TeX Live distribution with `biber` (APA `biblatex`)
+- Heavy feature extraction was run on the UHeM SLURM cluster (allocation 4025462026); see
+  `code/pipeline/run_tez.slurm`.

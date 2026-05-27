@@ -1,0 +1,191 @@
+﻿BEGIN TRANSACTION;
+CREATE TABLE IF NOT EXISTS "FAD_40Hz_subjects" (
+	"subject_id"	INT,
+	"original_code"	INT
+);
+CREATE TABLE IF NOT EXISTS "FAD_40Hz_activity_info" (
+	"activity_id"	INT,
+	"description"	TEXT,
+	"class_type"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "FAD_40Hz_trials" (
+	"trial_id"	INT,
+	"subject_id"	INT,
+	"activity_id"	INT,
+	"dataset_version"	TEXT,
+	"device_pos"	TEXT,
+	"sampling_rate"	INT,
+	"trial_no"	INT
+);
+CREATE TABLE IF NOT EXISTS "FAD_40Hz_sensor_data" (
+	"data_id"	INT,
+	"subject_id"	INT,
+	"trial_id"	INT,
+	"activity_id"	INT,
+	"is_fall"	INT,
+	"timestamp"	REAL,
+	"acc_x"	REAL,
+	"acc_y"	REAL,
+	"acc_z"	REAL,
+	"gyr_x"	REAL,
+	"gyr_y"	REAL,
+	"gyr_z"	REAL,
+	"mag_x"	REAL,
+	"mag_y"	REAL,
+	"mag_z"	REAL,
+	"bar_pressure"	REAL
+);
+CREATE TABLE IF NOT EXISTS "SisFall_subjects" (
+	"subject_id"	INT,
+	"original_code"	TEXT,
+	"dataset_name"	TEXT,
+	"age"	INT,
+	"height"	INT,
+	"weight"	REAL,
+	"gender"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "SisFall_activity_info" (
+	"activity_id"	INT,
+	"code"	TEXT,
+	"description"	TEXT,
+	"class_type"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "SisFall_trials" (
+	"trial_id"	INT,
+	"subject_id"	INT,
+	"activity_id"	INT,
+	"dataset_version"	TEXT,
+	"device_pos"	TEXT,
+	"sampling_rate"	INT,
+	"trial_no"	INT
+);
+CREATE TABLE IF NOT EXISTS "SisFall_sensor_descriptions" (
+	"sensor_id"	INT,
+	"sensor_model"	TEXT,
+	"sensor_type"	TEXT,
+	"range_val"	TEXT,
+	"resolution"	TEXT,
+	"unit"	TEXT,
+	"suitability"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "SisFall_sensor_data" (
+	"data_id"	INT,
+	"subject_id"	INT,
+	"trial_id"	INT,
+	"activity_id"	INT,
+	"is_fall"	INT,
+	"timestamp"	REAL,
+	"acc_adxl345_x"	REAL,
+	"acc_adxl345_y"	REAL,
+	"acc_adxl345_z"	REAL,
+	"gyr_itg3200_x"	REAL,
+	"gyr_itg3200_y"	REAL,
+	"gyr_itg3200_z"	REAL,
+	"acc_mma8451q_x"	REAL,
+	"acc_mma8451q_y"	REAL,
+	"acc_mma8451q_z"	REAL,
+	"mag_x"	REAL,
+	"mag_y"	REAL,
+	"mag_z"	REAL,
+	"bar_pressure"	REAL,
+	"device_orientation"	INT
+);
+CREATE TABLE IF NOT EXISTS "MobiFall_subjects" (
+	"subject_id"	INT,
+	"original_code"	TEXT,
+	"age"	INT,
+	"height"	INT,
+	"weight"	INT,
+	"gender"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "MobiFall_activity_info" (
+	"activity_id"	INT,
+	"code"	TEXT,
+	"description"	TEXT,
+	"class_type"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "MobiFall_trials" (
+	"trial_id"	INT,
+	"subject_id"	INT,
+	"activity_id"	INT,
+	"dataset_version"	TEXT,
+	"device_pos"	TEXT,
+	"sampling_rate"	INT,
+	"trial_no"	INT
+);
+CREATE TABLE IF NOT EXISTS "MobiFall_sensor_data" (
+	"data_id"	INT,
+	"subject_id"	INT,
+	"trial_id"	INT,
+	"activity_id"	INT,
+	"is_fall"	INT,
+	"timestamp"	REAL,
+	"acc_x"	REAL,
+	"acc_y"	REAL,
+	"acc_z"	REAL,
+	"gyr_x"	REAL,
+	"gyr_y"	REAL,
+	"gyr_z"	REAL,
+	"ori_azimuth"	REAL,
+	"ori_pitch"	REAL,
+	"ori_roll"	REAL,
+	"mag_x"	REAL,
+	"mag_y"	REAL,
+	"mag_z"	REAL,
+	"bar_pressure"	REAL,
+	"device_orientation"	INT
+);
+CREATE TABLE IF NOT EXISTS "FD_Ori_subjects" (
+	"subject_id"	INT,
+	"original_code"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "FD_Ori_activity_info" (
+	"activity_id"	INT,
+	"description"	TEXT,
+	"class_type"	TEXT
+);
+CREATE TABLE IF NOT EXISTS "FD_Ori_trials" (
+	"trial_id"	INT,
+	"subject_id"	INT,
+	"activity_id"	INT,
+	"dataset_version"	TEXT,
+	"device_pos"	TEXT,
+	"sampling_rate"	INT,
+	"trial_no"	INT
+);
+CREATE TABLE IF NOT EXISTS "FD_Ori_sensor_data" (
+	"data_id"	INT,
+	"subject_id"	INT,
+	"trial_id"	INT,
+	"activity_id"	INT,
+	"is_fall"	INT,
+	"timestamp"	REAL,
+	"device_orientation"	INT,
+	"acc_x"	REAL,
+	"acc_y"	REAL,
+	"acc_z"	REAL,
+	"gyr_x"	REAL,
+	"gyr_y"	REAL,
+	"gyr_z"	REAL,
+	"mag_x"	REAL,
+	"mag_y"	REAL,
+	"mag_z"	REAL,
+	"bar_pressure"	REAL
+);
+CREATE INDEX IF NOT EXISTS "idx_SisFall_sensor_data_trial_time" ON "SisFall_sensor_data" (
+	"trial_id",
+	"timestamp"
+);
+CREATE INDEX IF NOT EXISTS "idx_FAD_40Hz_sensor_data_trial_time" ON "FAD_40Hz_sensor_data" (
+	"trial_id",
+	"timestamp"
+);
+CREATE INDEX IF NOT EXISTS "idx_FD_Ori_sensor_data_trial_time" ON "FD_Ori_sensor_data" (
+	"trial_id",
+	"timestamp"
+);
+CREATE INDEX IF NOT EXISTS "idx_MobiFall_sensor_data_trial_time" ON "MobiFall_sensor_data" (
+	"trial_id",
+	"timestamp"
+);
+COMMIT;

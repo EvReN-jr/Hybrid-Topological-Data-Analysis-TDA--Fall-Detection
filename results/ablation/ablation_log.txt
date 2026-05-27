@@ -1,0 +1,7 @@
+MobiFall|LogReg|Full             F2=0.9049+-0.0393  Rec=0.9574  {'clf__C': 10, 'clf__penalty': 'l2'}  (3s)
+MobiFall|LogReg|H0               F2=0.8721+-0.0399  Rec=0.9698  {'clf__C': 1, 'clf__penalty': 'l2'}  (0s)
+MobiFall|LogReg|H1               F2=0.6181+-0.0528  Rec=0.8914  {'clf__C': 0.1, 'clf__penalty': 'l1'}  (0s)
+MobiFall|LogReg|H0+H1            F2=0.8887+-0.0398  Rec=0.9679  {'clf__C': 1, 'clf__penalty': 'l1'}  (0s)
+MobiFall|LogReg|Signal           F2=0.6218+-0.0778  Rec=0.9642  {'clf__C': 0.1, 'clf__penalty': 'l1'}  (0s)
+SisFall|LogReg|Full              F2=0.9710+-0.0102  Rec=0.9841  {'clf__C': 1, 'clf__penalty': 'l1'}  (19s)
+SisFall|LogReg|H0                F2=0.9257+-0.0126  Rec=0.9424  {'clf__C': 1, 'clf__penalty': 'l1'}  (6s)
